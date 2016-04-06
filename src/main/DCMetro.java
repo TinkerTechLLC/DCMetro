@@ -33,6 +33,7 @@ public class DCMetro
     {
 		initLines();
 		initStations();
+		initPaths();
     }
 	
 	private static void initLines(){
@@ -60,6 +61,19 @@ public class DCMetro
         }
         createGeoJSONFile();
     }
+	
+	private static void initPaths(){
+		for(MetroLine line : lineList){
+			String fromCode = line.getStartStationCode();
+			String toCode = line.getEndStationCode();
+			HashMap<String, String> params = new HashMap<String, String>();
+			params.put("FromStationCode", fromCode);
+			params.put("ToStationCode", toCode);
+			JSONArray pathArray = apiCall("https://api.wmata.com/Rail.svc/json/jPath", params, "Path");
+			line.setSegmentInfo(pathArray);
+		}
+		
+	}
 	
 	private static JSONArray apiCall(String url, HashMap<String,String> params, String arrayName) {
 		System.out.println("Performaing an API call!");
@@ -104,6 +118,10 @@ public class DCMetro
 		return stationList;
 	}
 	
+	public static List<MetroLine> getLineList(){
+		return lineList;
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static JSONObject getGeoJSONObject(){
 		JSONObject stationListObject = new JSONObject();
@@ -131,6 +149,65 @@ public class DCMetro
 	public static String getGeoJSONFileLocation(){
 		createGeoJSONFile();
 		return "metroStations.json";
+	}
+	
+	public static RouteInfo getRouteInfo(MetroStation s0, MetroStation s1){
+		HashMap<String, String> params = new HashMap<String, String>();
+		params.put("FromStationCode", s0.getCode());
+		params.put("ToStationCode", s1.getCode());
+		JSONArray infoArray = DCMetro.apiCall("https://api.wmata.com/Rail.svc/json/jSrcStationToDstStationInfo", 
+				params, "StationToStationInfos");
+		return new RouteInfo(infoArray);
+	}
+	
+	public static class RouteInfo{
+		String distance;
+		String destination;
+		String source;
+		String peak;
+		String offPeak;
+		String discount;
+		String time;
+		
+		RouteInfo(JSONArray infoArray){
+			JSONObject info = (JSONObject) infoArray.get(0);
+			this.distance = info.get("CompositeMiles").toString();
+			this.destination = info.get("DestinationStation").toString();
+			this.source = info.get("SourceStation").toString();
+			this.time = info.get("RailTime").toString();
+			JSONObject fares = (JSONObject) info.get("RailFare");
+			this.offPeak = fares.get("OffPeakTime").toString();
+			this.peak = fares.get("PeakTime").toString();
+			this.discount = fares.get("SeniorDisabled").toString();
+		}
+
+		public String getDistance() {
+			return distance;
+		}
+
+		public String getDestination() {
+			return destination;
+		}
+
+		public String getSource() {
+			return source;
+		}
+
+		public String getPeak() {
+			return peak;
+		}
+
+		public String getOffPeak() {
+			return offPeak;
+		}
+
+		public String getDiscount() {
+			return discount;
+		}
+
+		public String getTime() {
+			return time;
+		}
 	}
 
 }
